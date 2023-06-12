@@ -1,7 +1,8 @@
-package simplexity.twitchlistener;
+package simplexity.streamchatcli.twitch;
 
 import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.chat.events.channel.ChannelMessageEvent;
+import simplexity.streamchatcli.Main;
 
 public class MessageStuff {
     private static MessageStuff instance;

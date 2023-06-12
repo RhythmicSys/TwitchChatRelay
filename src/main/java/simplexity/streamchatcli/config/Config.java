@@ -1,4 +1,4 @@
-package simplexity.twitchlistener.config;
+package simplexity.streamchatcli.config;
 
 import java.io.*;
 import java.util.Properties;
@@ -11,8 +11,9 @@ public class Config {
         if (instance == null) instance = new Config();
         return instance;
     }
-    private String channelName;
-    private String oAuthCode;
+    private String twitchChannelName;
+    private String twitchOAuthCode;
+    private String kickChannelName;
 
     private final String fileName = "config.properties";
     private final File configFile = new File(fileName);
@@ -20,8 +21,11 @@ public class Config {
     public void initializeProperties() {
         if (configFile.exists()) return;
         Properties properties = new Properties();
-        properties.setProperty("o-auth-code", "");
-        properties.setProperty("channel-name", "");
+        properties.setProperty("use-twitch", "false");
+        properties.setProperty("twitch-o-auth-code", "");
+        properties.setProperty("twitch-channel-name", "");
+        properties.setProperty("use-kick", "false");
+        properties.setProperty("kick-channel-name", "");
         OutputStream outputStream = null;
         try {
             outputStream = new FileOutputStream(fileName);
@@ -50,8 +54,9 @@ public class Config {
             e.printStackTrace();
             return;
         }
-        channelName = properties.getProperty("channel-name");
-        oAuthCode = properties.getProperty("o-auth-code");
+        twitchChannelName = properties.getProperty("twitch-channel-name");
+        twitchOAuthCode = properties.getProperty("twitch-o-auth-code");
+        kickChannelName = properties.getProperty("kick-channel-name");
         try {
             inputStream.close();
         } catch (IOException e) {
@@ -59,12 +64,15 @@ public class Config {
         }
     }
 
-    public String getChannelName() {
-        return channelName;
+    public String getTwitchChannelName() {
+        return twitchChannelName;
     }
 
-    public String getOAuthCode() {
-        return oAuthCode;
+    public String getTwitchOAuthCode() {
+        return twitchOAuthCode;
+    }
+    public String getKickChannelName(){
+        return kickChannelName;
     }
 }
 
