@@ -8,11 +8,21 @@ import okhttp3.Request;
 import simplexity.streamchatcli.config.Config;
 import simplexity.streamchatcli.kick.MessageListener;
 import simplexity.streamchatcli.twitch.MessageStuff;
+import simplexity.streamchatcli.util.TwitchStrings;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class Main {
 
@@ -20,6 +30,7 @@ public class Main {
     private static TwitchClient twitchClient;
     private static URL kickURL;
     private static URL kickChatroomURL;
+    private static final Set<String> authTypes = Set.of("READ-ONLY", "READ-SEND", "MODERATOR");
 
     private static void setUpListenerBot() {
         twitchClient = TwitchClientBuilder.builder()
@@ -31,7 +42,7 @@ public class Main {
 
     private static final OkHttpClient kickHttpClient = new OkHttpClient.Builder().eventListener(new MessageListener()).build();
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
         setUpConfig();
         if (!Config.getInstance().isUseKick() && !Config.getInstance().isUseTwitch()) {
             System.out.println("Config has been initialized, please configure settings");
@@ -45,27 +56,58 @@ public class Main {
         }
         MessageStuff.getInstance().onMessageEvent();
     }
-    private static void setupTwitchChat() {
+    private static void setupTwitchChat() throws IOException{
         if (Config.getInstance().getTwitchChannelName() == null || Config.getInstance().getTwitchChannelName().isEmpty()) {
             System.out.println("You have enabled twitch chat, but have not designated a channel to read from. Please designate a twitch channel");
             return;
         }
         if (Config.getInstance().getTwitchOAuthCode() == null || Config.getInstance().getTwitchOAuthCode().isEmpty()) {
-            System.out.println("This application does not yet have authorization to interact with twitch");
-            System.out.println("Note, if your account does not have the permissions in the channel you are trying to interact with, this application will also not have those permissions");
-            System.out.println("What level of permission would you like to give this application? Valid responses are: READ-ONLY, READ-SEND, and MODERATOR");
-
+            setupAuth();
         }
         credential = new OAuth2Credential("twitch", Config.getInstance().getTwitchOAuthCode());
         setUpListenerBot();
         twitchClient.getChat().joinChannel(Config.getInstance().getTwitchChannelName());
 
     }
-    private static String getRequestedAuthLevel() {
+
+    private static void setupAuth() throws IOException{
+        System.out.println("This application does not yet have authorization to interact with twitch");
+        System.out.println("Note, if your account does not have the permissions in the channel you are trying to interact with, this application will also not have those permissions");
+        System.out.println("What level of permission would you like to give this application? Valid responses are: READ-ONLY, READ-SEND, and MODERATOR");
         Scanner oAuthScanner = new Scanner(System.in);
-        String authLevel = oAuthScanner.nextLine();
-        oAuthScanner.close();
-        return authLevel;
+        String requestedLevel;
+        requestedLevel = oAuthScanner.nextLine().toUpperCase();
+        while (!authTypes.contains(requestedLevel)) {
+            System.out.println("Your response did not match any of the options, please be sure you have spelled the option correctly.");
+            System.out.println("What level of permission would you like to give this application? Valid responses are: READ-ONLY, READ-SEND, and MODERATOR");
+            requestedLevel = oAuthScanner.nextLine().toUpperCase();
+        }
+        String authAddressString = TwitchStrings.getInstance().getLinkMinusScopes();
+        if (requestedLevel.equalsIgnoreCase("READ-ONLY")) {
+            authAddressString = authAddressString + TwitchStrings.getInstance().getUserReadOnlyScope();
+            //logic
+        }
+        if (requestedLevel.equalsIgnoreCase("READ-SEND")) {
+            authAddressString = authAddressString + TwitchStrings.getInstance().getUserReadSendScope();
+            //logic
+        }
+        if (requestedLevel.equalsIgnoreCase("MODERATOR")) {
+            authAddressString = authAddressString + TwitchStrings.getInstance().getUserModerateScope();
+            //logic
+        }
+        URL authAddress = new URL(authAddressString);
+        URL redirectURI = new URL(TwitchStrings.getInstance().getRedirectURI());
+        System.out.println("Please visit this link to give this application the authorization to interact with Twitch");
+        System.out.println(authAddressString);
+        listenForTwitchAuthResponse(redirectURI);
+    }
+
+    private static void listenForTwitchAuthResponse(URL redirectURL) throws IOException {
+        HttpURLConnection redirectURLConnection = (HttpURLConnection) redirectURL.openConnection();
+        redirectURLConnection.setRequestMethod("POST");
+        String response = redirectURLConnection.getResponseMessage();
+        System.out.println(response);
+
     }
     private static void setupKickChat() throws IOException {
         if (Config.getInstance().getKickChannelName() == null || Config.getInstance().getKickChannelName().isEmpty()) {
