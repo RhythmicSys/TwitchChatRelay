@@ -3,6 +3,7 @@ package simplexity.streamchatcli;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.TwitchClientBuilder;
+import com.sun.net.httpserver.HttpServer;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import simplexity.streamchatcli.config.Config;
@@ -11,10 +12,7 @@ import simplexity.streamchatcli.twitch.MessageStuff;
 import simplexity.streamchatcli.util.TwitchStrings;
 
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URL;
+import java.net.*;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -56,7 +54,7 @@ public class Main {
         }
         MessageStuff.getInstance().onMessageEvent();
     }
-    private static void setupTwitchChat() throws IOException{
+    private static void setupTwitchChat() throws IOException, InterruptedException {
         if (Config.getInstance().getTwitchChannelName() == null || Config.getInstance().getTwitchChannelName().isEmpty()) {
             System.out.println("You have enabled twitch chat, but have not designated a channel to read from. Please designate a twitch channel");
             return;
@@ -70,7 +68,7 @@ public class Main {
 
     }
 
-    private static void setupAuth() throws IOException{
+    private static void setupAuth() throws IOException, InterruptedException {
         System.out.println("This application does not yet have authorization to interact with twitch");
         System.out.println("Note, if your account does not have the permissions in the channel you are trying to interact with, this application will also not have those permissions");
         System.out.println("What level of permission would you like to give this application? Valid responses are: READ-ONLY, READ-SEND, and MODERATOR");
@@ -95,18 +93,27 @@ public class Main {
             authAddressString = authAddressString + TwitchStrings.getInstance().getUserModerateScope();
             //logic
         }
-        URL authAddress = new URL(authAddressString);
-        URL redirectURI = new URL(TwitchStrings.getInstance().getRedirectURI());
         System.out.println("Please visit this link to give this application the authorization to interact with Twitch");
         System.out.println(authAddressString);
-        listenForTwitchAuthResponse(redirectURI);
+        setupServer();
     }
 
-    private static void listenForTwitchAuthResponse(URL redirectURL) throws IOException {
-        HttpURLConnection redirectURLConnection = (HttpURLConnection) redirectURL.openConnection();
-        redirectURLConnection.setRequestMethod("POST");
-        String response = redirectURLConnection.getResponseMessage();
-        System.out.println(response);
+    private static void setupServer() throws IOException, InterruptedException {
+        HttpServer httpServer = HttpServer.create();
+        httpServer.createContext(TwitchStrings.getInstance().getRedirectURI());
+        httpServer.start();
+        listenForTwitchAuthResponse();
+    }
+
+    private static void listenForTwitchAuthResponse() throws IOException, InterruptedException {
+        HttpClient httpClient = HttpClient.newHttpClient();
+        HttpResponse.BodyHandler<String> stringBodyHandler = HttpResponse.BodyHandlers.ofString();
+        HttpRequest httpRequest = HttpRequest.newBuilder(URI.create(TwitchStrings.getInstance().getRedirectURI())).GET().build();
+        HttpResponse<String> response = httpClient.send(httpRequest, stringBodyHandler);
+        System.out.println(response.body());
+        System.out.println(response.headers());
+
+
 
     }
     private static void setupKickChat() throws IOException {
