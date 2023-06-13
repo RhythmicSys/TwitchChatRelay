@@ -12,6 +12,7 @@ import simplexity.streamchatcli.twitch.MessageStuff;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Scanner;
 
 public class Main {
 
@@ -32,20 +33,49 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         setUpConfig();
-        if (Config.getInstance().getTwitchChannelName().isEmpty() || Config.getInstance().getTwitchOAuthCode().isEmpty()) {
-            System.out.println("PLEASE CONFIGURE YOUR CHANNEL NAME AND ACCESS TOKEN");
+        if (!Config.getInstance().isUseKick() && !Config.getInstance().isUseTwitch()) {
+            System.out.println("Config has been initialized, please configure settings");
             return;
+        }
+        if (Config.getInstance().isUseTwitch()) {
+            setupTwitchChat();
+        }
+        if (Config.getInstance().isUseKick()) {
+            setupKickChat();
+        }
+        MessageStuff.getInstance().onMessageEvent();
+    }
+    private static void setupTwitchChat() {
+        if (Config.getInstance().getTwitchChannelName() == null || Config.getInstance().getTwitchChannelName().isEmpty()) {
+            System.out.println("You have enabled twitch chat, but have not designated a channel to read from. Please designate a twitch channel");
+            return;
+        }
+        if (Config.getInstance().getTwitchOAuthCode() == null || Config.getInstance().getTwitchOAuthCode().isEmpty()) {
+            System.out.println("This application does not yet have authorization to interact with twitch");
+            System.out.println("Note, if your account does not have the permissions in the channel you are trying to interact with, this application will also not have those permissions");
+            System.out.println("What level of permission would you like to give this application? Valid responses are: READ-ONLY, READ-SEND, and MODERATOR");
+
         }
         credential = new OAuth2Credential("twitch", Config.getInstance().getTwitchOAuthCode());
         setUpListenerBot();
         twitchClient.getChat().joinChannel(Config.getInstance().getTwitchChannelName());
-        if (Config.getInstance().getKickChannelName() != null && !Config.getInstance().getKickChannelName().isEmpty()) {
-            kickURL = new URL("https://kick.com/api/v2/channels/" + Config.getInstance().getKickChannelName() + "/");
-            kickChatroomURL = new URL("https://kick.com/api/v1/channels/" + Config.getInstance().getKickChannelName() + "/");
-            Request request = new Request.Builder().url(kickChatroomURL).build();
-            kickHttpClient.newCall(request).execute();
+
+    }
+    private static String getRequestedAuthLevel() {
+        Scanner oAuthScanner = new Scanner(System.in);
+        String authLevel = oAuthScanner.nextLine();
+        oAuthScanner.close();
+        return authLevel;
+    }
+    private static void setupKickChat() throws IOException {
+        if (Config.getInstance().getKickChannelName() == null || Config.getInstance().getKickChannelName().isEmpty()) {
+            System.out.println("You have enabled kick chat, but have not designated a channel to read from. Please designate a kick channel");
+            return;
         }
-        MessageStuff.getInstance().onMessageEvent();
+        kickURL = new URL("https://kick.com/api/v2/channels/" + Config.getInstance().getKickChannelName() + "/");
+        kickChatroomURL = new URL("https://kick.com/api/v1/channels/" + Config.getInstance().getKickChannelName() + "/");
+        Request request = new Request.Builder().url(kickChatroomURL).build();
+        kickHttpClient.newCall(request).execute();
     }
 
     private static void setUpConfig() {

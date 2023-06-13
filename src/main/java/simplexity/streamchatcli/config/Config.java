@@ -11,6 +11,8 @@ public class Config {
         if (instance == null) instance = new Config();
         return instance;
     }
+    private boolean useTwitch;
+    private boolean useKick;
     private String twitchChannelName;
     private String twitchOAuthCode;
     private String kickChannelName;
@@ -54,6 +56,8 @@ public class Config {
             e.printStackTrace();
             return;
         }
+        useTwitch = Boolean.parseBoolean(properties.getProperty("use-twitch"));
+        useKick = Boolean.parseBoolean(properties.getProperty("use-kick"));
         twitchChannelName = properties.getProperty("twitch-channel-name");
         twitchOAuthCode = properties.getProperty("twitch-o-auth-code");
         kickChannelName = properties.getProperty("kick-channel-name");
@@ -62,6 +66,14 @@ public class Config {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public boolean isUseKick() {
+        return useKick;
+    }
+
+    public boolean isUseTwitch() {
+        return useTwitch;
     }
 
     public String getTwitchChannelName() {
